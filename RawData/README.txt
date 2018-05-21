@@ -6,6 +6,7 @@ them in 4 .zip files with each .zip file containing 766 slices.The 5-fold
 cross-validation indices are also provided.
 
 -----
+Dataset Link: https://figshare.com/articles/brain_tumor_dataset/1512427
 This data is organized in matlab data format (.mat file). Each file stores a struct
 containing the following fields for an image:
 
