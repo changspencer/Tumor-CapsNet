@@ -19,7 +19,7 @@ parameters in the model and decrease the training time.
 Second (First?) layer is a convolutional layer with 64 × 9 × 9 filters
 and stride of 1 which leads to 64 feature maps of size 56×56.
 '''
-conv1 = layers.Conv2D(64, (9, 9), activation='relu', input_shape=(64, 64, 1), name="FirstLayer")(x)
+conv1 = layers.Conv2D(64, (9, 9), activation='relu', name="FirstLayer")(x)
 '''
 The second layer is a Primary Capsule layer resulting from
 256×9×9 convolutions with strides of 2.
@@ -73,23 +73,29 @@ image_resize_weight = 64
 image_datagen = ImageDataGenerator(rescale=1./255)
 train_generator = image_datagen.flow_from_directory(
     train_data_directory,
+    color_mode='grayscale',    
     target_size=(image_resize_height, image_resize_weight),
     batch_size=20,
     class_mode='categorical')
 
 validation_generator = image_datagen.flow_from_directory(
     validation_data_directory,
+    color_mode='grayscale',
     target_size=(image_resize_height, image_resize_weight),
     batch_size=20,
     class_mode='categorical')
 
-# for x,y in train_generator:
-#     print(type(x[0][0]))
-#     print(x[0][0])
-#     print(type(y[0][0]))
-#     print(y[0][0])
-#     break
+for x,y in train_generator:
+    print("x shape: ", x.shape)
+    print("y shape: ", y.shape)
+    break
 
+for x, y in validation_generator:
+    print("val x shape: ", x.shape)
+    print("val y shape: ", y.shape)
+    break
+
+print(train_model.summary())
 
 train_model.compile(
     optimizer="rmsprop",             # Improved backprop algorithm
