@@ -5,6 +5,7 @@ import glob
 import re
 import random
 import numpy as np
+import scipy.misc
 from matplotlib import pyplot as plt
 
 
@@ -26,7 +27,7 @@ def splitMatFile(fold_name, train_fold, test_fold, test_split):
     for i, file in enumerate(list_files):
         dest_fold = train_fold if i < split_idx else test_fold
         with h5py.File(file) as f:
-            match = re.search("(?:[a-zA-Z0-9_\/]*)[0-9]+(?=[.]mat)", file)
+            match = re.search("(?=[a-zA-Z0-9_\/]*)[0-9]+(?=[.]mat)", file)
             fig_name = match.group(0) + ".png"
             img = f["cjdata/image"]
             mask = f["cjdata/tumorMask"]
@@ -38,6 +39,7 @@ def splitMatFile(fold_name, train_fold, test_fold, test_split):
             # Normalize to 0.0 to 1.0
             img = img * (1 / np.max(np.max(img)))
             seg_img = np.multiply(img, mask)
+            seg_img = scipy.misc.imresize(seg_img, (64, 64))
             plt.imsave(dest_fold + '/' + folders[label - 1] + '/' + fig_name,
                        seg_img, cmap="gray")
 
@@ -95,9 +97,9 @@ if __name__ == "__main__":
     createDataFolders()
 
     print("Parsing the .mat files now....")
-    splitMatFile("RawData/brainTumorDataPublic_1-766", "train", "test", 0.75)
-    splitMatFile("RawData/brainTumorDataPublic_767-1532", "train", "test", 0.75)
-    splitMatFile("RawData/brainTumorDataPublic_1533-2298", "train", "test", 0.75)
-    splitMatFile("RawData/brainTumorDataPublic_2299-3064", "train", "test", 0.75)
+    splitMatFile("RawData/brainTumorDataPublic_1766", "train", "test", 0.75)
+    splitMatFile("RawData/brainTumorDataPublic_7671532", "train", "test", 0.75)
+    splitMatFile("RawData/brainTumorDataPublic_15332298", "train", "test", 0.75)
+    splitMatFile("RawData/brainTumorDataPublic_22993064", "train", "test", 0.75)
 
     print("Done parsing the .mat files. Enjoy the results!")
