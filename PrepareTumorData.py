@@ -70,6 +70,6 @@ if __name__ == "__main__":
     clearDataFolders('test/' + glioma)
     clearDataFolders('test/' + pituitary)
     print("Parsing the .mat files now....")
-    splitMatFile("RawData/brainTumorDataPublic_1766", "train", "test", 0.25)
+    splitMatFile("RawData/brainTumorDataPublic_1766", "train", "test", 0.75)
 
     print("Done parsing the .mat files. Enjoy the results!")
