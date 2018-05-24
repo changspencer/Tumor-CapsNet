@@ -41,8 +41,20 @@ def splitMatFile(fold_name, train_fold, test_fold, test_split):
             plt.imsave(dest_fold + '/' + folders[label - 1] + '/' + fig_name,
                        seg_img, cmap="gray")
 
+def clearDataFolders():
+    '''
+    Clears all of the train and test data folders.
+    '''
+    print("Clearing the training folders...")
+    clearDataFolder('train/' + meningioma)
+    clearDataFolder('train/' + glioma)
+    clearDataFolder('train/' + pituitary)
+    print("Clearing the test folders...")
+    clearDataFolder('test/' + meningioma)
+    clearDataFolder('test/' + glioma)
+    clearDataFolder('test/' + pituitary)
 
-def clearDataFolders(fold_name):
+def clearDataFolder(fold_name):
     '''
     Takes in a folder name to search for .png files.
     ***CAUTION: This targets all PNG files containing preceding digits***
@@ -59,17 +71,33 @@ def clearDataFolders(fold_name):
             os.remove(fold_name + '/' + match.group(0))
     print("Removed {} .png files from folder {}".format(count, fold_name))
 
+def createDataFolders():
+    '''
+    Creates all of the test and training folders for the 3 types of brain tumors.
+    '''
+    print("Creating test and training folders...")
+    createDataFolder('train/' + meningioma)
+    createDataFolder('train/' + glioma)
+    createDataFolder('train/' + pituitary)
+    createDataFolder('test/' + meningioma)
+    createDataFolder('test/' + glioma)
+    createDataFolder('test/' + pituitary)
+    
+def createDataFolder(directory):
+    '''
+    Creates a folder if it doesn't already exist.
+    '''
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 if __name__ == "__main__":
-    print("Clearing the training folders...")
-    clearDataFolders('train/' + meningioma)
-    clearDataFolders('train/' + glioma)
-    clearDataFolders('train/' + pituitary)
-    print("Clearing the test folders...")
-    clearDataFolders('test/' + meningioma)
-    clearDataFolders('test/' + glioma)
-    clearDataFolders('test/' + pituitary)
+    clearDataFolders()
+    createDataFolders()
+
     print("Parsing the .mat files now....")
-    splitMatFile("RawData/brainTumorDataPublic_1766", "train", "test", 0.75)
+    splitMatFile("RawData/brainTumorDataPublic_1-766", "train", "test", 0.75)
+    splitMatFile("RawData/brainTumorDataPublic_767-1532", "train", "test", 0.75)
+    splitMatFile("RawData/brainTumorDataPublic_1533-2298", "train", "test", 0.75)
+    splitMatFile("RawData/brainTumorDataPublic_2299-3064", "train", "test", 0.75)
 
     print("Done parsing the .mat files. Enjoy the results!")
