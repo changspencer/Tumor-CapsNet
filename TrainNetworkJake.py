@@ -26,23 +26,23 @@ def main():
     The second layer is a Primary Capsule layer resulting from
     256×9×9 convolutions with strides of 2.
     '''
-    primaryCaps = PrimaryCap(inputs=conv1, dim_capsule=1,
+    primaryCaps = PrimaryCap(inputs=conv1, dim_capsule=8,
                              n_channels=32, kernel_size=9, strides=2, padding='valid')
     '''
     This layer consists of 32 “Component Capsules” with dimension of 8 each of
     which has feature maps of size 24×24 (i.e., each Component
     Capsule contains 24 × 24 localized individual Capsules).
     '''
-    capLayer1 = CapsuleLayer(
-        num_capsule=32, dim_capsule=8, routings=3, name="SecondLayer")(primaryCaps)
+    #capLayer1 = CapsuleLayer(
+    #    num_capsule=32, dim_capsule=8, routings=3, name="SecondLayer")(primaryCaps)
         # num_capsule=4, dim_capsule=8, routings=3, name="SecondLayer")(primaryCaps)
     '''
     Final capsule layer includes 3 capsules, referred to as “Class
     Capsules,’ ’one for each type of candidate brain tumor. The
     dimension of these capsules is 16.
     '''
-    capLayer2 = CapsuleLayer(
-        num_capsule=3, dim_capsule=16, routings=3, name="ThirdLayer")(capLayer1)
+    capLayer2 = CapsuleLayer(num_capsule=3, dim_capsule=16, routings=2,
+                             name="ThirdLayer")(primaryCaps)
 
     # Layer 4: This is an auxiliary layer to replace each capsule with its length. Just to match the true label's shape.
     # If using tensorflow, this will not be necessary. :)
@@ -75,7 +75,7 @@ def main():
 
     train_data_directory = 'train/'
     validation_data_directory = 'test/'
-    
+    bsize = 32
 
     image_datagen = ImageDataGenerator()
     # train_generator = image_datagen.flow_from_directory(
@@ -84,7 +84,7 @@ def main():
     #     target_size=(image_resize_height, image_resize_weight),
     #     batch_size=20,
     #     class_mode='categorical')
-    train_generator = create_generator(train_data_directory)
+    train_generator = create_generator(train_data_directory, batch_size=bsize)
 
     # validation_generator = image_datagen.flow_from_directory(
     #     validation_data_directory,
@@ -93,7 +93,8 @@ def main():
     #     batch_size=20,
     #     class_mode='categorical')
 
-    validation_generator = create_generator(validation_data_directory)
+    validation_generator = create_generator(validation_data_directory,
+                                            batch_size=bsize)
 
     # for x, y in train_generator:
     #     print("x shape: ", x.shape)
@@ -116,16 +117,16 @@ def main():
 
     hst = train_model.fit_generator(
         train_generator,
-        steps_per_epoch=100,
+        steps_per_epoch=72,
         epochs=8,
         validation_data=validation_generator,
-        validation_steps=50,
+        validation_steps=24,
         verbose=1).history
 
     train_model.save('Test.h5')
 
 
-def create_generator(data_directory):
+def create_generator(data_directory, batch_size=64):
     train_datagen = ImageDataGenerator()  # shift up to 2 pixel for MNIST
     # generator = train_datagen.flow(x, y, batch_size=batch_size)
     image_resize_height = 64
@@ -135,7 +136,7 @@ def create_generator(data_directory):
         data_directory,
         color_mode='grayscale',
         target_size=(image_resize_height, image_resize_weight),
-        batch_size=20,
+        batch_size=batch_size,
         class_mode='categorical')
 
     while 1:
