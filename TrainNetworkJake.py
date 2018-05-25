@@ -27,7 +27,7 @@ def main():
     256×9×9 convolutions with strides of 2.
     '''
     primaryCaps = PrimaryCap(inputs=conv1, dim_capsule=1,
-                             n_channels=256, kernel_size=9, strides=2, padding='valid')
+                             n_channels=32, kernel_size=9, strides=2, padding='valid')
     '''
     This layer consists of 32 “Component Capsules” with dimension of 8 each of
     which has feature maps of size 24×24 (i.e., each Component
@@ -35,6 +35,7 @@ def main():
     '''
     capLayer1 = CapsuleLayer(
         num_capsule=32, dim_capsule=8, routings=3, name="SecondLayer")(primaryCaps)
+        # num_capsule=4, dim_capsule=8, routings=3, name="SecondLayer")(primaryCaps)
     '''
     Final capsule layer includes 3 capsules, referred to as “Class
     Capsules,’ ’one for each type of candidate brain tumor. The
@@ -108,7 +109,7 @@ def main():
 
     train_model.compile(
         optimizer="rmsprop",             # Improved backprop algorithm
-        loss='categorical_crossentropy',  # "Misprediction" measure
+        loss='mse',  # "Misprediction" measure
         # loss='sparse_categorical_crossentropy',  # "Misprediction" measure
         metrics=['accuracy']             # Report CCE value as we train
     )
@@ -139,7 +140,7 @@ def create_generator(data_directory):
 
     while 1:
         x_batch, y_batch = generator.next()
-        print("y_batch", y_batch)
+        # print("y_batch", y_batch)
         yield ([x_batch, y_batch], [y_batch, x_batch])
 
 
