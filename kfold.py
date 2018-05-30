@@ -9,6 +9,7 @@ from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.preprocessing.image import ImageDataGenerator
 from capsnetKeras.capsulelayers import CapsuleLayer, PrimaryCap, Length, Mask
+from matplotlib import pyplot as plt
 
 
 def prepare_data():
@@ -132,11 +133,11 @@ def k_fold_validation(model, train_data, train_labels, num_folds):
     # print("fold_len", fold_len)
 
     checkpointer = ModelCheckpoint(filepath='CapsNet.h5',
-                                   monitor='val_acc',
+                                   monitor='val_capsnet_acc',
                                    save_best_only=True)
-    early_stopping = EarlyStopping(monitor='val_acc', patience=3)
+    early_stopping = EarlyStopping(monitor='val_capsnet_acc', patience=4)
 
-    mse_results = np.zeros(num_folds)
+    results = []
     for fold in range(num_folds):
         print("++++++++++++++++++++\nProcessing fold {}...\n++++++++++++++++++++"
               .format(fold + 1))
@@ -167,9 +168,15 @@ def k_fold_validation(model, train_data, train_labels, num_folds):
                                   verbose=1,
                                   callbacks=[early_stopping,
                                              checkpointer])
-        mse_results[fold] = hst.history['val_mse']
+        results.append(hst.histroy)
 
-    return mse_results, np.mean(mse_results)
+    return results
+
+
+def plt_history(results):
+    # val_acc val_loss in the same figure
+    # train_acc train_loss in the same figure
+    pass
 
 
 def main():
