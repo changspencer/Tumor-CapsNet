@@ -7,33 +7,35 @@ import numpy as np
 from keras import models, layers
 from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras.preprocessing.image import ImageDataGenerator
 from capsnetKeras.capsulelayers import CapsuleLayer, PrimaryCap, Length, Mask
 
 
 def prepare_data():
     train_data, train_labels = [], []
+    list_files = []
     folders = ['RawData/brainTumorDataPublic_1766',
                'RawData/brainTumorDataPublic_7671532',
                'RawData/brainTumorDataPublic_15332298',
                'RawData/brainTumorDataPublic_22993064']
     for fold in folders:
-        list_files = glob.glob(fold + "/*.mat")
-        random.shuffle(list_files)
-        print("Getting files from {}...".format(fold))
-        for file in list_files:
-            with h5py.File(file) as f:
-                # print("Getting segmented image and label from {}"
-                #       .format(file))
-                img = f["cjdata/image"]
-                mask = f["cjdata/tumorMask"]
-                train_labels.append(int(f["cjdata/label"][0]))
-                img = np.array(img)
-                mask = np.array(mask)
-                # Normalize to 0.0 to 1.0
-                img = img * (1 / np.max(np.max(img)))
-                seg_img = np.multiply(img, mask)
-                seg_img = transform.resize(seg_img, (64, 64))
-                train_data.append(seg_img)
+        list_files += glob.glob(fold + "/*.mat")
+    random.shuffle(list_files)
+    # print("Getting files from {}...".format(fold))
+    for file in list_files:
+        with h5py.File(file) as f:
+            # print("Getting segmented image and label from {}"
+            #       .format(file))
+            img = f["cjdata/image"]
+            mask = f["cjdata/tumorMask"]
+            train_labels.append(int(f["cjdata/label"][0]))
+            img = np.array(img)
+            mask = np.array(mask)
+            # Normalize to 0.0 to 1.0
+            img = img * (1 / np.max(np.max(img)))
+            seg_img = np.multiply(img, mask)
+            seg_img = transform.resize(seg_img, (64, 64))
+            train_data.append(seg_img)
     train_data = np.asarray(train_data)
     # print("train_data.shape = ", train_data.shape)
     train_labels = np.asarray(train_labels)
@@ -114,6 +116,16 @@ def build_model():
     return train_model
 
 
+def create_generator(train_data, train_labels):
+    train_datagen = ImageDataGenerator()
+    generator = train_datagen.flow(train_data, train_labels)
+    while 1:
+        x_batch, y_batch = generator.next()
+        # print("y_batch", y_batch)
+        yield ([x_batch, y_batch], [y_batch, x_batch])
+
+
+
 def k_fold_validation(model, train_data, train_labels, num_folds):
     print("Running k-fold validation...")
     fold_len = train_data.shape[0] // num_folds
@@ -129,27 +141,32 @@ def k_fold_validation(model, train_data, train_labels, num_folds):
         print("++++++++++++++++++++\nProcessing fold {}...\n++++++++++++++++++++"
               .format(fold + 1))
         val_data = train_data[fold * fold_len:(fold + 1) * fold_len]
-        val_data = np.reshape(val_data, (fold_len, 1, val_data.shape[1],
-                                         val_data.shape[2]))
-        val_targets = train_labels[fold * fold_len: fold_len]
+        val_data = np.expand_dims(val_data, axis=3)
+        # val_data = np.reshape(val_data, (fold_len, 1, val_data.shape[1],
+        #                                  val_data.shape[2]))
+        val_labels = train_labels[fold * fold_len: fold_len]
 
         partial_train_data = np.vstack((train_data[:fold * fold_len],
                                         train_data[(fold + 1) * fold_len:]))
-        partial_train_data = np.reshape(partial_train_data,
-                                        (train_data.shape[0] - fold_len, 1,
-                                         partial_train_data.shape[1],
-                                         partial_train_data.shape[2]))
+        partial_train_data = np.expand_dims(partial_train_data, axis=3)
+        # partial_train_data = np.reshape(partial_train_data,
+        #                                 (train_data.shape[0] - fold_len, 1,
+        #                                  partial_train_data.shape[1],
+        #                                  partial_train_data.shape[2]))
         partial_train_labels = np.vstack((train_labels[:fold * fold_len],
                                           train_labels[(fold + 1) * fold_len:]))
 
-        print(partial_train_data[0].shape)
-        hst = model.fit(partial_train_data,
-                        partial_train_labels,
-                        validation_data=(val_data, val_targets),
-                        epochs=20,
-                        verbose=1,
-                        callbacks=[early_stopping,
-                                   checkpointer])
+        print(partial_train_data.shape)
+        train_gen = create_generator(partial_train_data, partial_train_labels)
+        val_gen = create_generator(val_data, val_labels)
+        hst = model.fit_generator(train_gen,
+                                  validation_data=val_gen,
+                                  steps_per_epoch=72,
+                                  validation_steps=24,
+                                  epochs=20,
+                                  verbose=1,
+                                  callbacks=[early_stopping,
+                                             checkpointer])
         mse_results[fold] = hst.history['val_mse']
 
     return mse_results, np.mean(mse_results)

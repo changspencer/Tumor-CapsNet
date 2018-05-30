@@ -130,7 +130,7 @@ def create_generator(data_directory, batch_size=64):
     train_datagen = ImageDataGenerator()  # shift up to 2 pixel for MNIST
     # generator = train_datagen.flow(x, y, batch_size=batch_size)
     image_resize_height = 64
-    image_resize_weight = 64
+    image_resize_width = 64
 
     generator = train_datagen.flow_from_directory(
         data_directory,
