@@ -84,7 +84,7 @@ def createDataFolders():
     createDataFolder('test/' + meningioma)
     createDataFolder('test/' + glioma)
     createDataFolder('test/' + pituitary)
-    
+
 def createDataFolder(directory):
     '''
     Creates a folder if it doesn't already exist.
