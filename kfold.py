@@ -1,11 +1,41 @@
+import h5py
+import glob
+import random
 import numpy as np
 from keras import models, layers
+from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from capsnetKeras.capsulelayers import CapsuleLayer, PrimaryCap, Length, Mask
 
 
 def get_train_data():
-    pass
+    train_data, train_labels = [], []
+    folders = ['RawData/brainTumorDataPublic_1766',
+               'RawData/brainTumorDataPublic_7671532',
+               'RawData/brainTumorDataPublic_15332298',
+               'RawData/brainTumorDataPublic_22993064']
+    for fold in folders:
+        list_files = glob.glob(fold + "/*.mat")
+        random.shuffle(list_files)
+        print("Getting from files in {}...".format(fold))
+        for file in list_files:
+            with h5py.File(file) as f:
+                # print("Getting segmented image and label from {}"
+                #       .format(file))
+                img = f["cjdata/image"]
+                mask = f["cjdata/tumorMask"]
+                train_labels.append(int(f["cjdata/label"][0]))
+                img = np.array(img)
+                mask = np.array(mask)
+                # Normalize to 0.0 to 1.0
+                img = img * (1 / np.max(np.max(img)))
+                train_data.append(np.multiply(img, mask))
+    train_data = np.asarray(train_data)
+    train_labels = np.asarray(train_labels)
+    train_labels = to_categorical(train_labels, num_classes=4)
+    train_labels = train_labels[:, 1:]
+
+    return train_data, train_labels
 
 
 def build_model():
@@ -75,23 +105,28 @@ def k_fold_validation(model, train_data, train_labels, num_folds):
                                    save_best_only=True)
     early_stopping = EarlyStopping(monitor='val_acc', patience=3)
 
-    mse_results = []
+    mse_results = np.zeros(num_folds)
     for fold in range(num_folds):
-        history = model.fit(train_data,
-                            train_labels,
-                            epochs=20,
-                            verbose=1,
-                            callbacks=[early_stopping,
-                                       checkpointer],
-                            validation_split=0.25).history
+        hst = model.fit(train_data,
+                        train_labels,
+                        epochs=20,
+                        verbose=1,
+                        callbacks=[early_stopping,
+                                   checkpointer],
+                        validation_split=0.25)
+        mse_results[fold] = hst.history['val_mse']
 
-    return history
+    return mse_results, np.mean(mse_results)
 
 
 def main():
+    train_data, train_labels = get_train_data()
     model = build_model()
     num_folds = 5
-    k_fold_validation(model, train_data, train_labels, num_folds)
+    results_per_fold, mean = k_fold_validation(model, train_data,
+                                               train_labels, num_folds)
+    print("Results per fold:", results_per_fold)
+    print("Mean of results:", mean)
 
 
 if __name__ == '__main__':
