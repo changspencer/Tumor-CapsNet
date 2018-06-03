@@ -1,6 +1,10 @@
 # Tumor-CapsNet
 Reproduce results from "Brain Tumor Type Classification via Capsule Networks" (Afshar et al.) for a final project in a Deep Learning class at Cal Poly San Luis Obispo.
 ***
+## Requirements
+* Keras v2.0+ (?)
+* NumPy v1.13+
+* Code from [CapsNet-Keras](https://github.com/XifengGuo/CapsNet-Keras)
 ## Dataset
 [Brain Tumor MR Data](https://figshare.com/articles/brain_tumor_dataset/1512427) posted by Jun Cheng
 ## Architecture (WIP)
