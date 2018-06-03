@@ -1,14 +1,16 @@
 import h5py
 import glob
 import random
-from skimage import transform
 import json
+import matplotlib
 import numpy as np
+from skimage import transform
 from keras import models, layers
 from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.preprocessing.image import ImageDataGenerator
 from capsnetKeras.capsulelayers import CapsuleLayer, PrimaryCap, Length, Mask
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 
 
@@ -19,30 +21,33 @@ def prepare_data():
                'RawData/brainTumorDataPublic_7671532',
                'RawData/brainTumorDataPublic_15332298',
                'RawData/brainTumorDataPublic_22993064']
+    print("Preparing the brain tumor data...")
     for fold in folders:
         list_files += glob.glob(fold + "/*.mat")
     random.shuffle(list_files)
-    # print("Getting files from {}...".format(fold))
     for file in list_files:
         with h5py.File(file) as f:
-            # print("Getting segmented image and label from {}"
-            #       .format(file))
             img = f["cjdata/image"]
             mask = f["cjdata/tumorMask"]
-            train_labels.append(int(f["cjdata/label"][0]))
+            # Labels are 1-indexed
+            train_labels.append(int(f["cjdata/label"][0]) - 1)
             img = np.array(img)
             mask = np.array(mask)
             # Normalize to 0.0 to 1.0
             img = img * (1 / np.max(np.max(img)))
             seg_img = np.multiply(img, mask)
+            # seg_img = img
             seg_img = transform.resize(seg_img, (64, 64))
             train_data.append(seg_img)
     train_data = np.asarray(train_data)
-    # print("train_data.shape = ", train_data.shape)
+    print("train_data.shape = ", train_data.shape)
     train_labels = np.asarray(train_labels)
-    train_labels = to_categorical(train_labels, num_classes=4)
-    train_labels = train_labels[:, 1:]
-    # print("train_labels.shape = ", train_labels.shape)
+    train_labels = to_categorical(train_labels, num_classes=3)
+    print("Sample Train_labels: {}".format(train_labels[0]))
+    # train_labels = train_labels[:, 1:]
+    # print("Sample Train_labels (mod): {}".format(train_labels[0]))
+    print("train_labels.shape = ", train_labels.shape)
+    print("Done preparing data")
     return train_data, train_labels
 
 # def get_train_data():
@@ -112,7 +117,7 @@ def build_model():
     train_model = models.Model([x, y], [out_caps, decoder(masked_by_y)])
 
     train_model.compile(optimizer="rmsprop", loss='mse', metrics=['accuracy'])
-    train_model.summary()
+    # train_model.summary()
 
     return train_model
 
@@ -127,7 +132,7 @@ def create_generator(train_data, train_labels):
 
 
 
-def k_fold_validation(model, train_data, train_labels, num_folds):
+def k_fold_validation(train_data, train_labels, num_folds):
     print("Running k-fold validation...")
     fold_len = train_data.shape[0] // num_folds
     # print("fold_len", fold_len)
@@ -139,36 +144,42 @@ def k_fold_validation(model, train_data, train_labels, num_folds):
 
     results = []
     for fold in range(num_folds):
+        model = build_model()
         print("++++++++++++++++++++\nProcessing fold {}...\n++++++++++++++++++++"
               .format(fold + 1))
         val_data = train_data[fold * fold_len:(fold + 1) * fold_len]
         val_data = np.expand_dims(val_data, axis=3)
         # val_data = np.reshape(val_data, (fold_len, 1, val_data.shape[1],
         #                                  val_data.shape[2]))
-        val_labels = train_labels[fold * fold_len: fold_len]
+        val_labels = train_labels[fold * fold_len:(fold + 1) * fold_len]
 
-        partial_train_data = np.vstack((train_data[:fold * fold_len],
-                                        train_data[(fold + 1) * fold_len:]))
+        partial_train_data = np.concatenate((train_data[:fold * fold_len],
+                                             train_data[(fold + 1) * fold_len:]))
         partial_train_data = np.expand_dims(partial_train_data, axis=3)
         # partial_train_data = np.reshape(partial_train_data,
         #                                 (train_data.shape[0] - fold_len, 1,
         #                                  partial_train_data.shape[1],
         #                                  partial_train_data.shape[2]))
-        partial_train_labels = np.vstack((train_labels[:fold * fold_len],
-                                          train_labels[(fold + 1) * fold_len:]))
+        partial_train_labels = np.concatenate((train_labels[:fold * fold_len],
+                                               train_labels[(fold + 1) * fold_len:]))
 
-        print(partial_train_data.shape)
+        print("Training data shape: {}".format(partial_train_data.shape))
+        print("Training Labels shape: {}".format(partial_train_labels.shape))
+        print("Validation data shape: {}".format(val_data.shape))
+        print("Validation Labels shape: {}".format(val_labels.shape))
         train_gen = create_generator(partial_train_data, partial_train_labels)
         val_gen = create_generator(val_data, val_labels)
         hst = model.fit_generator(train_gen,
-                                  validation_data=val_gen,
+                                  # validation_data=val_gen,
+                                  validation_data=([val_data, val_labels],
+                                                   [val_labels, val_data]),
                                   steps_per_epoch=72,
                                   validation_steps=24,
-                                  epochs=20,
+                                  epochs=15,
                                   verbose=1,
                                   callbacks=[early_stopping,
                                              checkpointer])
-        results.append(hst.histroy)
+        results.append(hst.history)
 
     return results
 
@@ -176,19 +187,36 @@ def k_fold_validation(model, train_data, train_labels, num_folds):
 def plt_history(results):
     # val_acc val_loss in the same figure
     # train_acc train_loss in the same figure
-    pass
+    clr = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
+    num_epochs = np.arange(1, len(results[0]['val_capsnet_acc']) + 1)
+    # Plot the val_capsnet_acc vs val_capsnet_loss
+    for i, history in enumerate(results):
+        plt.plot(num_epochs, history["val_capsnet_acc"], clr[i])
+        plt.plot(num_epochs, history["val_capsnet_loss"], clr[i])
+    plt.xlabel("Epoch")
+    plt.ylabel("Validation CapsNet Acc/Loss")
+    plt.savefig("val_capsnet_acc-loss.png")
+    # Plot the capsnet_acc vs capsnet_loss
+    plt.figure(2)
+    for i, history in enumerate(results):
+        plt.plot(num_epochs, history["capsnet_acc"], clr[i])
+        plt.plot(num_epochs, history["capsnet_loss"], clr[i])
+    plt.xlabel("Epoch")
+    plt.ylabel("Training CapsNet Acc/Loss")
+    plt.savefig("capsnet_acc-loss.png")
+    
 
 
 def main():
     train_data, train_labels = prepare_data()
     # print(train_data.shape)
     # print(train_data[:10])
-    model = build_model()
     num_folds = 5
-    results_per_fold, mean = k_fold_validation(model, train_data,
-                                               train_labels, num_folds)
-    print("Results per fold:", results_per_fold)
-    print("Mean of results:", mean)
+    k_fold_results = k_fold_validation(train_data, train_labels,
+                                       num_folds)
+    # print("Results per fold:", results_per_fold)
+    # print("Mean of results:", mean)
+    plt_history(k_fold_results)
 
 
 if __name__ == '__main__':
