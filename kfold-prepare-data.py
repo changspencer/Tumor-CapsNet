@@ -18,8 +18,6 @@ def prepare_data():
         print("Getting files from {}...".format(fold))
         for file in list_files:
             with h5py.File(file) as f:
-                # print("Getting segmented image and label from {}"
-                #       .format(file))
                 img = f["cjdata/image"]
                 mask = f["cjdata/tumorMask"]
                 train_labels.append(int(f["cjdata/label"][0]))
@@ -36,15 +34,6 @@ def prepare_data():
     train_labels = to_categorical(train_labels, num_classes=4)
     train_labels = train_labels[:, 1:]
     print("train_labels.shape = ", train_labels.shape)
-
-    # with open('kfold.train', 'w+') as f:
-    #     for img in train_data:
-    #         for seq in img:
-    #             f.write(str(seq) + '\n')
-
-    # with open('kfold.labels', 'w+') as f:
-    #     for seq in train_data:
-    #         f.write(str(seq) + '\n')
 
 
 prepare_data()
