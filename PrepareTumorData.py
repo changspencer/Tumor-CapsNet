@@ -43,6 +43,7 @@ def splitMatFile(fold_name, train_fold, test_fold, test_split):
             plt.imsave(dest_fold + '/' + folders[label - 1] + '/' + fig_name,
                        seg_img, cmap="gray")
 
+
 def clearDataFolders():
     '''
     Clears all of the train and test data folders.
@@ -55,6 +56,7 @@ def clearDataFolders():
     clearDataFolder('test/' + meningioma)
     clearDataFolder('test/' + glioma)
     clearDataFolder('test/' + pituitary)
+
 
 def clearDataFolder(fold_name):
     '''
@@ -73,9 +75,10 @@ def clearDataFolder(fold_name):
             os.remove(fold_name + '/' + match.group(0))
     print("Removed {} .png files from folder {}".format(count, fold_name))
 
+
 def createDataFolders():
     '''
-    Creates all of the test and training folders for the 3 types of brain tumors.
+    Creates all of the test and train folders for the 3 types of brain tumors.
     '''
     print("Creating test and training folders...")
     createDataFolder('train/' + meningioma)
@@ -85,12 +88,14 @@ def createDataFolders():
     createDataFolder('test/' + glioma)
     createDataFolder('test/' + pituitary)
 
+
 def createDataFolder(directory):
     '''
     Creates a folder if it doesn't already exist.
     '''
     if not os.path.exists(directory):
         os.makedirs(directory)
+
 
 if __name__ == "__main__":
     clearDataFolders()
@@ -99,7 +104,9 @@ if __name__ == "__main__":
     print("Parsing the .mat files now....")
     splitMatFile("RawData/brainTumorDataPublic_1766", "train", "test", 0.75)
     splitMatFile("RawData/brainTumorDataPublic_7671532", "train", "test", 0.75)
-    splitMatFile("RawData/brainTumorDataPublic_15332298", "train", "test", 0.75)
-    splitMatFile("RawData/brainTumorDataPublic_22993064", "train", "test", 0.75)
+    splitMatFile("RawData/brainTumorDataPublic_15332298",
+                 "train", "test", 0.75)
+    splitMatFile("RawData/brainTumorDataPublic_22993064",
+                 "train", "test", 0.75)
 
     print("Done parsing the .mat files. Enjoy the results!")

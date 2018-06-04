@@ -1,7 +1,6 @@
 import h5py
 import glob
 import random
-import json
 import matplotlib
 import numpy as np
 from skimage import transform
@@ -97,7 +96,6 @@ def build_model():
     train_model = models.Model([x, y], [out_caps, decoder(masked_by_y)])
 
     train_model.compile(optimizer="rmsprop", loss='mse', metrics=['accuracy'])
-    # train_model.summary()
 
     return train_model
 
@@ -110,7 +108,7 @@ def build_separable_model():
     x = layers.Input(shape=input_shape)
     # Trying separable Convolutions, but the accuracy dropped 5%
     conv1 = layers.SeparableConv2D(64, (9, 9), activation='relu',
-                          name="SepLayer")(x)
+                                   name="SepLayer")(x)
     '''
     The second layer is a Primary Capsule layer resulting from
     256×9×9 convolutions with strides of 2.
@@ -161,7 +159,6 @@ def create_generator(train_data, train_labels, batch):
         yield ([x_batch, y_batch], [y_batch, x_batch])
 
 
-
 def k_fold_validation(train_data, train_labels, num_epoch, num_folds,
                       try_sep_conv):
     print("Running k-fold validation...")
@@ -176,19 +173,23 @@ def k_fold_validation(train_data, train_labels, num_epoch, num_folds,
     results = []
     batch = 32
     for fold in range(num_folds):
-        model = build_model() if try_sep_conv is False \
-                else build_separable_model()
-        print("++++++++++++++++++++\nProcessing fold {}...\n++++++++++++++++++++"
-              .format(fold + 1))
+        if try_sep_conv is False:
+            model = build_model()
+        else:
+            model = build_separable_model()
+        print("++++++++++++++++++++\nProcessing fold {}...", end='')
+        print("\n++++++++++++++++++++".format(fold + 1))
         val_data = train_data[fold * fold_len:(fold + 1) * fold_len]
         val_data = np.expand_dims(val_data, axis=3)
         val_labels = train_labels[fold * fold_len:(fold + 1) * fold_len]
 
-        partial_train_data = np.concatenate((train_data[:fold * fold_len],
-                                             train_data[(fold + 1) * fold_len:]))
+        train_slice = (train_data[:fold * fold_len],
+                       train_data[(fold + 1) * fold_len:])
+        partial_train_data = np.concatenate(train_slice)
         partial_train_data = np.expand_dims(partial_train_data, axis=3)
-        partial_train_labels = np.concatenate((train_labels[:fold * fold_len],
-                                               train_labels[(fold + 1) * fold_len:]))
+        label_slice = (train_labels[:fold * fold_len],
+                       train_labels[(fold + 1) * fold_len:])
+        partial_train_labels = np.concatenate(label_slice)
 
         print("Training data shape: {}".format(partial_train_data.shape))
         print("Training Labels shape: {}".format(partial_train_labels.shape))
@@ -198,12 +199,12 @@ def k_fold_validation(train_data, train_labels, num_epoch, num_folds,
                                      partial_train_labels,
                                      batch)
         # val_gen = create_generator(val_data, val_labels)
+        steps_per_epoch = len(partial_train_data) // batch
         hst = model.fit_generator(train_gen,
                                   # validation_data=val_gen,
                                   validation_data=([val_data, val_labels],
                                                    [val_labels, val_data]),
-                                  steps_per_epoch=
-                                  len(partial_train_data) // batch,
+                                  steps_per_epoch=steps_per_epoch,
                                   validation_steps=len(val_data) // batch,
                                   epochs=num_epoch,
                                   verbose=1,
@@ -240,7 +241,7 @@ def plt_history(results, num_epoch):
     plt.xlabel("Epoch")
     plt.ylabel("Training CapsNet Acc/Loss")
     plt.savefig("capsnet_acc-loss.png")
- 
+
 
 def main():
     full_image = False
