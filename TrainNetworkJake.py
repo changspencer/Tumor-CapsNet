@@ -29,14 +29,6 @@ def main():
     primaryCaps = PrimaryCap(inputs=conv1, dim_capsule=8,
                              n_channels=32, kernel_size=9, strides=2, padding='valid')
     '''
-    This layer consists of 32 “Component Capsules” with dimension of 8 each of
-    which has feature maps of size 24×24 (i.e., each Component
-    Capsule contains 24 × 24 localized individual Capsules).
-    '''
-    #capLayer1 = CapsuleLayer(
-    #    num_capsule=32, dim_capsule=8, routings=3, name="SecondLayer")(primaryCaps)
-        # num_capsule=4, dim_capsule=8, routings=3, name="SecondLayer")(primaryCaps)
-    '''
     Final capsule layer includes 3 capsules, referred to as “Class
     Capsules,’ ’one for each type of candidate brain tumor. The
     dimension of these capsules is 16.
@@ -44,7 +36,8 @@ def main():
     capLayer2 = CapsuleLayer(num_capsule=3, dim_capsule=16, routings=2,
                              name="ThirdLayer")(primaryCaps)
 
-    # Layer 4: This is an auxiliary layer to replace each capsule with its length. Just to match the true label's shape.
+    # Layer 4: This is an auxiliary layer to replace each capsule with its
+    # length. Just to match the true label's shape.
     # If using tensorflow, this will not be necessary. :)
     out_caps = Length(name='capsnet')(capLayer2)
 
@@ -58,61 +51,29 @@ def main():
     # Shared Decoder model in training and prediction
     decoder = models.Sequential(name='decoder')
     decoder.add(layers.Dense(512, activation='relu',
-                             input_dim=16*number_of_classes))
+                             input_dim=16 * number_of_classes))
     decoder.add(layers.Dense(1024, activation='relu'))
     decoder.add(layers.Dense(np.prod(input_shape), activation='sigmoid'))
     decoder.add(layers.Reshape(target_shape=input_shape, name='out_recon'))
 
     # Models for training and evaluation (prediction)
     train_model = models.Model([x, y], [out_caps, decoder(masked_by_y)])
-    eval_model = models.Model(x, [out_caps, decoder(masked)])
-
-    # Probably don't need the below chunk of code ?
-    noise = layers.Input(shape=(number_of_classes, 16))
-    noised_capLayer2 = layers.Add()([capLayer2, noise])
-    masked_noised_y = Mask()([noised_capLayer2, y])
-    manipulate_model = models.Model([x, y, noise], decoder(masked_noised_y))
 
     train_data_directory = 'train/'
     validation_data_directory = 'test/'
     bsize = 32
 
-    image_datagen = ImageDataGenerator()
-    # train_generator = image_datagen.flow_from_directory(
-    #     train_data_directory,
-    #     color_mode='grayscale',
-    #     target_size=(image_resize_height, image_resize_weight),
-    #     batch_size=20,
-    #     class_mode='categorical')
     train_generator = create_generator(train_data_directory, batch_size=bsize)
-
-    # validation_generator = image_datagen.flow_from_directory(
-    #     validation_data_directory,
-    #     color_mode='grayscale',
-    #     target_size=(image_resize_height, image_resize_weight),
-    #     batch_size=20,
-    #     class_mode='categorical')
 
     validation_generator = create_generator(validation_data_directory,
                                             batch_size=bsize)
 
-    # for x, y in train_generator:
-    #     print("x shape: ", x.shape)
-    #     print("y shape: ", y.shape)
-    #     break
-
-    # for x, y in validation_generator:
-    #     print("val x shape: ", x.shape)
-    #     print("val y shape: ", y.shape)
-    #     break
-
     print(train_model.summary())
 
     train_model.compile(
-        optimizer="rmsprop",             # Improved backprop algorithm
-        loss='mse',  # "Misprediction" measure
-        # loss='sparse_categorical_crossentropy',  # "Misprediction" measure
-        metrics=['accuracy']             # Report CCE value as we train
+        optimizer="rmsprop",
+        loss='mse',
+        metrics=['accuracy']
     )
 
     hst = train_model.fit_generator(
@@ -127,21 +88,19 @@ def main():
 
 
 def create_generator(data_directory, batch_size=64):
-    train_datagen = ImageDataGenerator()  # shift up to 2 pixel for MNIST
-    # generator = train_datagen.flow(x, y, batch_size=batch_size)
+    train_datagen = ImageDataGenerator()
     image_resize_height = 64
     image_resize_width = 64
 
     generator = train_datagen.flow_from_directory(
         data_directory,
         color_mode='grayscale',
-        target_size=(image_resize_height, image_resize_weight),
+        target_size=(image_resize_height, image_resize_width),
         batch_size=batch_size,
         class_mode='categorical')
 
     while 1:
         x_batch, y_batch = generator.next()
-        # print("y_batch", y_batch)
         yield ([x_batch, y_batch], [y_batch, x_batch])
 
 
