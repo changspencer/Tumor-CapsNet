@@ -3,6 +3,7 @@ import glob
 import random
 import matplotlib
 import numpy as np
+from keras import backend as K
 from skimage import transform
 from keras import models, layers
 from keras.utils import to_categorical
@@ -46,7 +47,7 @@ def prepare_data(full_image):
     return train_data, train_labels
 
 
-def build_model():
+def build_model(calc_margin):
     print("Building model...")
     number_of_classes = 3
     input_shape = (64, 64, 1)
@@ -95,12 +96,17 @@ def build_model():
     decoder.add(layers.Reshape(target_shape=input_shape, name='out_recon'))
     train_model = models.Model([x, y], [out_caps, decoder(masked_by_y)])
 
-    train_model.compile(optimizer="rmsprop", loss='mse', metrics=['accuracy'])
+    if calc_margin is True:
+        loss_func = [margin_loss, 'mse']
+    else:
+        loss_func = ['mse']
+    train_model.compile(optimizer="rmsprop", loss=loss_func,
+                        metrics=['accuracy'])
 
     return train_model
 
 
-def build_separable_model():
+def build_separable_model(calc_margin):
     print("Building model...")
     number_of_classes = 3
     input_shape = (64, 64, 1)
@@ -143,11 +149,21 @@ def build_separable_model():
     decoder.add(layers.Reshape(target_shape=input_shape, name='out_recon'))
     train_model = models.Model([x, y], [out_caps, decoder(masked_by_y)])
 
-    train_model.compile(optimizer="rmsprop", loss='mse', metrics=['accuracy'])
+    if calc_margin is True:
+        loss_func = [margin_loss, 'mse']
+    else:
+        loss_func = ['mse']
+    train_model.compile(optimizer="rmsprop", loss=loss_func,
+                        metrics=['accuracy'])
     train_model.summary()
 
     return train_model
 
+
+def margin_loss(y_true, y_pred):
+    L = y_true * K.square(K.maximum(0., 0.9 - y_pred))
+    L += 0.5 * (1 - y_true) * K.square(K.maximum(0., y_pred - 0.1))
+    return K.mean(K.sum(L))
 
 def create_generator(train_data, train_labels, batch):
     train_datagen = ImageDataGenerator()
@@ -160,7 +176,7 @@ def create_generator(train_data, train_labels, batch):
 
 
 def k_fold_validation(train_data, train_labels, num_epoch, num_folds,
-                      try_sep_conv):
+                      try_sep_conv, use_margin):
     print("Running k-fold validation...")
     fold_len = train_data.shape[0] // num_folds
     # print("fold_len", fold_len)
@@ -174,11 +190,12 @@ def k_fold_validation(train_data, train_labels, num_epoch, num_folds,
     batch = 32
     for fold in range(num_folds):
         if try_sep_conv is False:
-            model = build_model()
+            model = build_model(use_margin)
         else:
-            model = build_separable_model()
-        print("++++++++++++++++++++\nProcessing fold {}...", end='')
-        print("\n++++++++++++++++++++".format(fold + 1))
+            model = build_separable_model(use_margin)
+        print("++++++++++++++++++++\nProcessing fold {}..."
+              .format(fold + 1), end='')
+        print("\n++++++++++++++++++++")
         val_data = train_data[fold * fold_len:(fold + 1) * fold_len]
         val_data = np.expand_dims(val_data, axis=3)
         val_labels = train_labels[fold * fold_len:(fold + 1) * fold_len]
@@ -198,10 +215,8 @@ def k_fold_validation(train_data, train_labels, num_epoch, num_folds,
         train_gen = create_generator(partial_train_data,
                                      partial_train_labels,
                                      batch)
-        # val_gen = create_generator(val_data, val_labels)
         steps_per_epoch = len(partial_train_data) // batch
         hst = model.fit_generator(train_gen,
-                                  # validation_data=val_gen,
                                   validation_data=([val_data, val_labels],
                                                    [val_labels, val_data]),
                                   steps_per_epoch=steps_per_epoch,
@@ -246,11 +261,12 @@ def plt_history(results, num_epoch):
 def main():
     full_image = False
     sep_conv = False
+    use_margin_loss = True
     num_folds = 5
     epochs = 15
     train_data, train_labels = prepare_data(full_image)
     k_fold_results = k_fold_validation(train_data, train_labels, epochs,
-                                       num_folds, sep_conv)
+                                       num_folds, sep_conv, use_margin_loss)
     plt_history(k_fold_results, epochs)
 
 
