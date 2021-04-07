@@ -28,6 +28,8 @@ def splitMatFile(fold_name, train_fold, test_fold, test_split):
         dest_fold = train_fold if i < split_idx else test_fold
         with h5py.File(file) as f:
             match = re.search("(?=[a-zA-Z0-9_\/]*)[0-9]+(?=[.]mat)", file)
+            if match in None:
+                continue
             fig_name = match.group(0) + ".png"
             img = f["cjdata/image"]
             mask = f["cjdata/tumorMask"]
